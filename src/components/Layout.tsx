@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Settings, History, BarChart2, X, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, Settings, History, BarChart2, ChevronRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 function useCountdown() {
