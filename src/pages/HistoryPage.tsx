@@ -292,8 +292,8 @@ const [openDropdown, setOpenDropdown] = useState<string | null>(null)
                     {getChangeSummary(log)}
                   </span>
                   <span style={{ fontSize: '12px', color: '#6b7280' }}>
-                    {log.user?.name || '—'}
-                  </span>
+  {log.user?.name || 'Demo User'}
+</span>
                   <span style={{ fontSize: '12px', color: '#9ca3af' }}>
                     {formatDate(log.created_at)}
                   </span>
