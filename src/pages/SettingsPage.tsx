@@ -36,29 +36,32 @@ export default function SettingsPage() {
       </div>
 
       <div style={{ display: 'flex', gap: '4px', marginBottom: '32px', borderBottom: '1px solid #e5e7eb' }}>
-        {([
-          { key: 'statuses', label: 'Task Statuses', icon: Tag },
-          { key: 'staff', label: 'Staff', icon: UserCheck },
-          { key: 'nonworkdays', label: 'Non-Work Days', icon: Calendar },
-          { key: 'users', label: 'People with Access', icon: Users },
-        ] as { key: Tab; label: string; icon: any }[]).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '10px 16px', fontSize: '14px', fontWeight: '500',
-              border: 'none', background: 'none', cursor: 'pointer',
-              borderBottom: activeTab === key ? '2px solid #ed1c24' : '2px solid transparent',
-              color: activeTab === key ? '#ed1c24' : '#6b7280',
-              marginBottom: '-1px', transition: 'all 0.15s'
-            }}
-          >
-            <Icon size={15} />
-            {label}
-          </button>
-        ))}
-      </div>
+  {([
+    { key: 'statuses', label: 'Task Statuses', icon: Tag },
+    { key: 'staff', label: 'Staff', icon: UserCheck },
+    { key: 'nonworkdays', label: 'Non-Work Days', icon: Calendar },
+    { key: 'users', label: 'People with Access', icon: Users },
+  ] as { key: Tab; label: string; icon: any }[]).map(({ key, label, icon: Icon }) => (
+    <button
+      key={key}
+      onClick={() => key !== 'users' && setActiveTab(key)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '8px',
+        padding: '10px 16px', fontSize: '14px', fontWeight: '500',
+        border: 'none', background: 'none',
+        cursor: key === 'users' ? 'not-allowed' : 'pointer',
+        borderBottom: activeTab === key ? '2px solid #ed1c24' : '2px solid transparent',
+        color: key === 'users' ? '#d1d5db' : activeTab === key ? '#ed1c24' : '#6b7280',
+        marginBottom: '-1px', transition: 'all 0.15s',
+        opacity: key === 'users' ? 0.5 : 1
+      }}
+    >
+      <Icon size={15} />
+      {label}
+      {key === 'users' && <span style={{ fontSize: '10px', background: '#f3f4f6', color: '#9ca3af', padding: '1px 6px', borderRadius: '10px', marginLeft: '4px' }}>Demo</span>}
+    </button>
+  ))}
+</div>
 
       {activeTab === 'statuses' && <StatusesTab />}
       {activeTab === 'staff' && <StaffTab />}
