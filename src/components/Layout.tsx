@@ -142,7 +142,7 @@ export default function Layout() {
       {/* Nav */}
       <nav className="nav">
         <div className="nav-brand">
-          <div className="nav-logo" />
+          <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '800', color: 'white', letterSpacing: '-0.5px' }}>PP</div>
           <span className="nav-title">Project Planner</span>
         </div>
         <div className="nav-links">
