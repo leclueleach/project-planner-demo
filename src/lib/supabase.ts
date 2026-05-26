@@ -5,7 +5,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
-  db: { schema: import.meta.env.VITE_DEMO_MODE === 'true' ? 'demo' : 'public' }
+  db: { schema: 'demo' }
 })
 
 export const setAuditUser = async (_authId: string) => {
