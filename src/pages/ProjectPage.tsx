@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Plus, ArrowLeft, ChevronUp, ChevronDown, Trash2, Check, X, Settings2, AlertTriangle } from 'lucide-react'
+import { Plus, ArrowLeft, ChevronUp, ChevronDown, Trash2, Check, X, Settings2, AlertTriangle, Play, Pause, RotateCcw, Clock, FileText } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 // ── TYPES ─────────────────────────────────────────────────────
@@ -13,73 +13,82 @@ interface Status { id: string; name: string; colour: string; is_system: boolean 
 interface Staff { id: string; name: string; active: boolean }
 interface IssueField { id: string; issue_id: string; category_id: string; assignee_id: string | null; lead_time: number | null; start_date: string | null; end_date: string | null; start_date_manual: boolean; status_id: string | null }
 interface NonWorkDay { date: string; type: string }
+interface Timer { id: string; issue_id: string; category_id: string; elapsed_seconds: number; is_running: boolean; last_started_at: string | null }
+interface Note { id: string; entity_type: string; entity_id: string; content: string }
 
 // ── DATE UTILS ────────────────────────────────────────────────
 function isNonWorkDay(date: Date, nonWorkDays: NonWorkDay[]): boolean {
-    const day = date.getDay()
-    if (day === 0 || day === 6) return true
-    const y = date.getFullYear()
-    const m = String(date.getMonth() + 1).padStart(2, '0')
-    const d = String(date.getDate()).padStart(2, '0')
-    const dateStr = `${y}-${m}-${d}`
-    return nonWorkDays.some(nwd => {
-      if (nwd.date === dateStr) return true
-      if (nwd.type === 'public_holiday') {
-        const [ny, nm, nd] = nwd.date.split('-').map(Number)
-        const nwdDate = new Date(ny, nm - 1, nd)
-        if (nwdDate.getDay() === 0) {
-          const monday = new Date(nwdDate)
-          monday.setDate(monday.getDate() + 1)
-          const my = monday.getFullYear()
-          const mm = String(monday.getMonth() + 1).padStart(2, '0')
-          const mdd = String(monday.getDate()).padStart(2, '0')
-          return `${my}-${mm}-${mdd}` === dateStr
-        }
+  const day = date.getDay()
+  if (day === 0 || day === 6) return true
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const dateStr = `${y}-${m}-${d}`
+  return nonWorkDays.some(nwd => {
+    if (nwd.date === dateStr) return true
+    if (nwd.type === 'public_holiday') {
+      const [ny, nm, nd] = nwd.date.split('-').map(Number)
+      const nwdDate = new Date(ny, nm - 1, nd)
+      if (nwdDate.getDay() === 0) {
+        const monday = new Date(nwdDate)
+        monday.setDate(monday.getDate() + 1)
+        const my = monday.getFullYear()
+        const mm = String(monday.getMonth() + 1).padStart(2, '0')
+        const mdd = String(monday.getDate()).padStart(2, '0')
+        return `${my}-${mm}-${mdd}` === dateStr
       }
-      return false
-    })
-  }
+    }
+    return false
+  })
+}
 
 function addWorkingDays(startDate: string, days: number, nonWorkDays: NonWorkDay[]): string {
-    const [year, month, day] = startDate.split('-').map(Number)
-    const date = new Date(year, month - 1, day)
-    let added = 0
-    while (added < days) {
-      date.setDate(date.getDate() + 1)
-      if (!isNonWorkDay(date, nonWorkDays)) added++
-    }
-    const y = date.getFullYear()
-    const m = String(date.getMonth() + 1).padStart(2, '0')
-    const d = String(date.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
-  }
-
-  function nextWorkingDay(dateStr: string, nonWorkDays: NonWorkDay[]): string {
-    const [year, month, day] = dateStr.split('-').map(Number)
-    const date = new Date(year, month - 1, day)
+  const [year, month, day] = startDate.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  let added = 0
+  while (added < days) {
     date.setDate(date.getDate() + 1)
-    while (isNonWorkDay(date, nonWorkDays)) date.setDate(date.getDate() + 1)
-    const y = date.getFullYear()
-    const m = String(date.getMonth() + 1).padStart(2, '0')
-    const d = String(date.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
+    if (!isNonWorkDay(date, nonWorkDays)) added++
   }
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
 
-  function formatDate(dateStr: string | null) {
-    if (!dateStr) return '—'
-    const [year, month, day] = dateStr.split('-')
-    return `${year}/${month}/${day}`
-  }
+function nextWorkingDay(dateStr: string, nonWorkDays: NonWorkDay[]): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  date.setDate(date.getDate() + 1)
+  while (isNonWorkDay(date, nonWorkDays)) date.setDate(date.getDate() + 1)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return '—'
+  const [year, month, day] = dateStr.split('-')
+  return `${year}/${month}/${day}`
+}
 
 function advanceToWorkingDay(dateStr: string, nonWorkDays: NonWorkDay[]): string {
-    const [year, month, day] = dateStr.split('-').map(Number)
-    let d = new Date(year, month - 1, day) // local time, no UTC conversion
-    while (isNonWorkDay(d, nonWorkDays)) d.setDate(d.getDate() + 1)
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${dd}`
-  }
+  const [year, month, day] = dateStr.split('-').map(Number)
+  let d = new Date(year, month - 1, day)
+  while (isNonWorkDay(d, nonWorkDays)) d.setDate(d.getDate() + 1)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+function formatSeconds(seconds: number): string {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
 
 // ── MODAL ─────────────────────────────────────────────────────
 function Modal({ title, message, onClose }: { title: string; message: string; onClose: () => void }) {
@@ -127,6 +136,172 @@ function InlineEdit({ value, onSave, style }: { value: string; onSave: (v: strin
       onMouseEnter={e => (e.currentTarget.style.borderBottomColor = '#d1d5db')}
       onMouseLeave={e => (e.currentTarget.style.borderBottomColor = 'transparent')}
     >{value}</span>
+  )
+}
+
+// ── NOTE EDITOR ───────────────────────────────────────────────
+function NoteEditor({ entityType, entityId }: { entityType: string; entityId: string }) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const { data: note } = useQuery({
+    queryKey: ['note', entityType, entityId],
+    queryFn: async () => {
+      const { data } = await supabase.from('notes').select('*').eq('entity_type', entityType).eq('entity_id', entityId).single()
+      return data as Note | null
+    }
+  })
+
+  useEffect(() => { if (note) setVal(note.content) }, [note])
+
+  const saveMutation = useMutation({
+    mutationFn: async (content: string) => {
+      if (note) {
+        await supabase.from('notes').update({ content, updated_at: new Date().toISOString() }).eq('id', note.id)
+      } else {
+        await supabase.from('notes').insert({ entity_type: entityType, entity_id: entityId, content })
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['note', entityType, entityId] })
+  })
+
+  if (editing) {
+    return (
+      <div style={{ marginBottom: '8px' }}>
+        <textarea ref={textareaRef} autoFocus value={val} onChange={e => setVal(e.target.value)}
+          placeholder="Add notes..."
+          style={{ width: '100%', fontSize: '12px', border: '1px solid #ed1c24', borderRadius: '6px', padding: '6px 8px', outline: 'none', fontFamily: 'inherit', resize: 'vertical', minHeight: '60px', boxSizing: 'border-box' }}
+          onBlur={() => { saveMutation.mutate(val); setEditing(false) }}
+          onKeyDown={e => { if (e.key === 'Escape') { setEditing(false) } }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div onClick={() => setEditing(true)} style={{ marginBottom: '8px', padding: '6px 8px', background: val ? '#fffbf0' : '#f9fafb', border: '1px dashed #e5e7eb', borderRadius: '6px', cursor: 'text', minHeight: '32px', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+      <FileText size={12} style={{ color: '#9ca3af', marginTop: '2px', flexShrink: 0 }} />
+      {val ? (
+        <span style={{ fontSize: '12px', color: '#6b7280', whiteSpace: 'pre-wrap' }}>{val}</span>
+      ) : (
+        <span style={{ fontSize: '12px', color: '#d1d5db' }}>Add notes...</span>
+      )}
+    </div>
+  )
+}
+
+// ── TIMER CELL ────────────────────────────────────────────────
+function TimerCell({ issueId, categoryId, statusId, inProgressStatusId }: { issueId: string; categoryId: string; statusId: string | null; inProgressStatusId: string | undefined }) {
+  const queryClient = useQueryClient()
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [localSeconds, setLocalSeconds] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const isInProgress = statusId === inProgressStatusId
+
+  const { data: timer } = useQuery({
+    queryKey: ['timer', issueId, categoryId],
+    queryFn: async () => {
+      const { data } = await supabase.from('timers').select('*').eq('issue_id', issueId).eq('category_id', categoryId).single()
+      return data as Timer | null
+    },
+    refetchInterval: timer?.is_running ? 5000 : false
+  })
+
+  useEffect(() => {
+    if (timer) {
+      let secs = timer.elapsed_seconds
+      if (timer.is_running && timer.last_started_at) {
+        const extra = Math.floor((Date.now() - new Date(timer.last_started_at).getTime()) / 1000)
+        secs += extra
+      }
+      setLocalSeconds(secs)
+    }
+  }, [timer])
+
+  useEffect(() => {
+    if (timer?.is_running) {
+      intervalRef.current = setInterval(() => {
+        setLocalSeconds(prev => prev + 1)
+      }, 1000)
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [timer?.is_running])
+
+  // Auto pause if status changes away from In Progress
+  useEffect(() => {
+    if (!isInProgress && timer?.is_running) {
+      pauseTimer()
+    }
+  }, [isInProgress, timer?.is_running])
+
+  const startTimer = async () => {
+    if (!isInProgress) return
+    const now = new Date().toISOString()
+    if (timer) {
+      await supabase.from('timers').update({ is_running: true, last_started_at: now }).eq('id', timer.id)
+    } else {
+      await supabase.from('timers').insert({ issue_id: issueId, category_id: categoryId, elapsed_seconds: 0, is_running: true, last_started_at: now })
+    }
+    queryClient.invalidateQueries({ queryKey: ['timer', issueId, categoryId] })
+    queryClient.invalidateQueries({ queryKey: ['timers'] })
+  }
+
+  const pauseTimer = async () => {
+    if (!timer) return
+    const extra = timer.last_started_at ? Math.floor((Date.now() - new Date(timer.last_started_at).getTime()) / 1000) : 0
+    await supabase.from('timers').update({ is_running: false, elapsed_seconds: timer.elapsed_seconds + extra, last_started_at: null }).eq('id', timer.id)
+    queryClient.invalidateQueries({ queryKey: ['timer', issueId, categoryId] })
+    queryClient.invalidateQueries({ queryKey: ['timers'] })
+  }
+
+  const resetTimer = async () => {
+    if (!timer) return
+    await supabase.from('timers').update({ is_running: false, elapsed_seconds: 0, last_started_at: null }).eq('id', timer.id)
+    setLocalSeconds(0)
+    setConfirmReset(false)
+    queryClient.invalidateQueries({ queryKey: ['timer', issueId, categoryId] })
+    queryClient.invalidateQueries({ queryKey: ['timers'] })
+  }
+
+  const isRunning = timer?.is_running || false
+  const hasTime = localSeconds > 0
+
+  return (
+    <div style={{ marginTop: '6px', padding: '6px 8px', background: isRunning ? '#f0fdf4' : '#f9fafb', borderRadius: '6px', border: `1px solid ${isRunning ? '#bbf7d0' : '#f3f4f6'}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Clock size={11} style={{ color: isRunning ? '#16a34a' : '#9ca3af', flexShrink: 0 }} />
+        <span style={{ fontSize: '12px', fontWeight: '600', color: isRunning ? '#16a34a' : '#6b7280', fontFamily: 'monospace', flex: 1 }}>
+          {formatSeconds(localSeconds)}
+        </span>
+        {confirmReset ? (
+          <Confirm label="Reset?" onConfirm={resetTimer} onCancel={() => setConfirmReset(false)} />
+        ) : (
+          <div style={{ display: 'flex', gap: '2px' }}>
+            {isRunning ? (
+              <button className="btn-ghost" style={{ padding: '2px 4px' }} onClick={pauseTimer} title="Pause">
+                <Pause size={11} style={{ color: '#6b7280' }} />
+              </button>
+            ) : (
+              <button className="btn-ghost" style={{ padding: '2px 4px', opacity: isInProgress ? 1 : 0.3, cursor: isInProgress ? 'pointer' : 'not-allowed' }}
+                onClick={isInProgress ? startTimer : undefined}
+                title={isInProgress ? 'Start' : 'Status must be In Progress to start timer'}>
+                <Play size={11} style={{ color: '#16a34a' }} />
+              </button>
+            )}
+            {hasTime && !isRunning && (
+              <button className="btn-ghost" style={{ padding: '2px 4px' }} onClick={() => setConfirmReset(true)} title="Reset">
+                <RotateCcw size={11} style={{ color: '#9ca3af' }} />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -229,35 +404,6 @@ export default function ProjectPage() {
     }
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const { data: timers = [] } = useQuery({
-  queryKey: ['timers', id],
-  queryFn: async () => {
-    const issueIds = issues.map(i => i.id)
-    if (issueIds.length === 0) return []
-    const { data, error } = await supabase
-      .from('timers')
-      .select('*')
-      .in('issue_id', issueIds)
-    if (error) throw error
-    return data
-  },
-  enabled: issues.length > 0,
-  refetchInterval: 5000 // refresh every 5 seconds to update running timers
-})
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const { data: notes = [] } = useQuery({
-  queryKey: ['notes', id],
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from('notes')
-      .select('*')
-    if (error) throw error
-    return data
-  }
-})  
-
   // ── HELPERS ───────────────────────────────────────────────
   const getField = useCallback((issueId: string, categoryId: string) =>
     issueFields.find(f => f.issue_id === issueId && f.category_id === categoryId), [issueFields])
@@ -267,12 +413,10 @@ const { data: notes = [] } = useQuery({
 
   const notStartedStatus = statuses.find(s => s.name === 'Not Started')
   const completeStatus = statuses.find(s => s.name === 'Complete')
+  const inProgressStatus = statuses.find(s => s.name === 'In Progress')
 
-  const isFieldComplete = (field: IssueField) =>
-    field.status_id === completeStatus?.id
-
-  const isFieldReady = (field: IssueField) =>
-    !!(field.assignee_id && field.lead_time && field.start_date)
+  const isFieldComplete = (field: IssueField) => field.status_id === completeStatus?.id
+  const isFieldReady = (field: IssueField) => !!(field.assignee_id && field.lead_time && field.start_date)
 
   // ── WARNING CHECKS ────────────────────────────────────────
   const hasDateWarning = useCallback((field: IssueField) => {
@@ -282,30 +426,23 @@ const { data: notes = [] } = useQuery({
     return false
   }, [project])
 
-  const issueHasWarning = useCallback((issueId: string) => {
-    return issueFields.filter(f => f.issue_id === issueId).some(f => hasDateWarning(f))
-  }, [issueFields, hasDateWarning])
+  const issueHasWarning = useCallback((issueId: string) =>
+    issueFields.filter(f => f.issue_id === issueId).some(f => hasDateWarning(f)), [issueFields, hasDateWarning])
 
-  const componentHasWarning = useCallback((componentId: string) => {
-    return issues.filter(i => i.component_id === componentId).some(i => issueHasWarning(i.id))
-  }, [issues, issueHasWarning])
+  const componentHasWarning = useCallback((componentId: string) =>
+    issues.filter(i => i.component_id === componentId).some(i => issueHasWarning(i.id)), [issues, issueHasWarning])
 
   const projectHasWarning = components.some(c => componentHasWarning(c.id))
 
-  // ── RECALC DATES ──────────────────────────────────────────
-    const handleFieldUpdate = useCallback(async (field: IssueField, updates: Partial<IssueField>) => {
+  // ── FIELD UPDATE ──────────────────────────────────────────
+  const handleFieldUpdate = useCallback(async (field: IssueField, updates: Partial<IssueField>) => {
     const updated = { ...field, ...updates }
     if ((updates.lead_time !== undefined || updates.start_date !== undefined) && updated.start_date && updated.lead_time) {
       updated.end_date = addWorkingDays(updated.start_date, updated.lead_time, nonWorkDays)
     }
-    // Save the updated field first
     await supabase.from('issue_fields').update(updated).eq('id', field.id)
-  
-    // Now fetch fresh fields and recalc subsequent categories
     const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
     const catIdx = sortedCats.findIndex(c => c.id === field.category_id)
-  
-    // Fetch all fields for this issue fresh from DB
     const { data: freshFields } = await supabase.from('issue_fields').select('*').eq('issue_id', field.issue_id)
     if (freshFields && catIdx >= 0) {
       for (let i = catIdx + 1; i < sortedCats.length; i++) {
@@ -318,12 +455,10 @@ const { data: notes = [] } = useQuery({
         const newStart = nextWorkingDay(prevField.end_date, nonWorkDays)
         const newEnd = currentField.lead_time ? addWorkingDays(newStart, currentField.lead_time, nonWorkDays) : currentField.end_date
         await supabase.from('issue_fields').update({ start_date: newStart, end_date: newEnd }).eq('id', currentField.id)
-        // Update freshFields in memory so next iteration uses updated value
         const idx = freshFields.findIndex(f => f.id === currentField.id)
         if (idx >= 0) freshFields[idx] = { ...freshFields[idx], start_date: newStart, end_date: newEnd }
       }
     }
-  
     queryClient.invalidateQueries({ queryKey: ['issue_fields', id] })
   }, [categories, nonWorkDays, queryClient, id])
 
@@ -341,8 +476,7 @@ const { data: notes = [] } = useQuery({
       const { data, error } = await supabase.from('categories').insert({ name, project_id: id, sort_order: categories.length }).select().single()
       if (error) throw error
       if (issues.length > 0) {
-        const notStartedId = notStartedStatus?.id
-        const fields = issues.map(issue => ({ issue_id: issue.id, category_id: data.id, sort_order: data.sort_order, status_id: notStartedId || null }))
+        const fields = issues.map(issue => ({ issue_id: issue.id, category_id: data.id, sort_order: data.sort_order, status_id: notStartedStatus?.id || null }))
         await supabase.from('issue_fields').insert(fields)
       }
     },
@@ -491,7 +625,6 @@ const { data: notes = [] } = useQuery({
     const isManual = field.start_date_manual
     const hasWarning = hasDateWarning(field)
     const fieldReady = isFieldReady(field)
-
     const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
     const prevCat = catIndex > 0 ? sortedCats[catIndex - 1] : null
     const prevField = prevCat ? getField(issueId, prevCat.id) : null
@@ -521,12 +654,10 @@ const { data: notes = [] } = useQuery({
     return (
       <td style={{ padding: '8px', borderRight: '1px solid #f3f4f6', verticalAlign: 'top', minWidth: '170px', background: hasWarning ? '#fff9f9' : 'white', position: 'relative' }}>
         {saving && (
-  <div style={{ position: 'absolute', top: '6px', right: '6px' }}>
-    <div className="spinner" style={{ width: '12px', height: '12px', borderWidth: '2px' }} />
-  </div>
-)}
-
-
+          <div style={{ position: 'absolute', top: '6px', right: '6px' }}>
+            <div className="spinner" style={{ width: '12px', height: '12px', borderWidth: '2px' }} />
+          </div>
+        )}
 
         {/* Assignee */}
         <div style={{ marginBottom: '6px' }}>
@@ -549,19 +680,17 @@ const { data: notes = [] } = useQuery({
 
         {/* Start Date */}
         <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <input type="date"
-            defaultValue={field.start_date || ''}
-            key={field.start_date || ''}
+          <input type="date" defaultValue={field.start_date || ''} key={field.start_date || ''}
             onBlur={e => {
               let dateVal = e.target.value
               if (!dateVal) return
               dateVal = advanceToWorkingDay(dateVal, nonWorkDays)
               if (project?.planned_start_date && dateVal < project.planned_start_date) {
-                setModal({ title: 'Date Out of Range', message: `This date is before the project planned start date (${formatDate(project.planned_start_date)}). Please choose a date within the project range.` })
+                setModal({ title: 'Date Out of Range', message: `This date is before the project planned start date (${formatDate(project.planned_start_date)}).` })
                 return
               }
               if (project?.planned_end_date && dateVal > project.planned_end_date) {
-                setModal({ title: 'Date Out of Range', message: `This date is after the project planned end date (${formatDate(project.planned_end_date)}). Please choose a date within the project range.` })
+                setModal({ title: 'Date Out of Range', message: `This date is after the project planned end date (${formatDate(project.planned_end_date)}).` })
                 return
               }
               if (prevField?.end_date && dateVal <= prevField.end_date) {
@@ -570,11 +699,7 @@ const { data: notes = [] } = useQuery({
               }
               saveField({ start_date: dateVal, start_date_manual: true })
             }}
-            style={{
-              fontSize: '11px',
-              border: `1px solid ${isManual ? '#fcaf17' : hasWarning ? '#ef4444' : '#e5e7eb'}`,
-              borderRadius: '4px', padding: '2px 4px', outline: 'none', fontFamily: 'inherit', width: '100%'
-            }}
+            style={{ fontSize: '11px', border: `1px solid ${isManual ? '#fcaf17' : hasWarning ? '#ef4444' : '#e5e7eb'}`, borderRadius: '4px', padding: '2px 4px', outline: 'none', fontFamily: 'inherit', width: '100%' }}
           />
           {isManual && <span title="Manually set" style={{ fontSize: '10px', color: '#fcaf17' }}>M</span>}
         </div>
@@ -588,7 +713,7 @@ const { data: notes = [] } = useQuery({
         </div>
 
         {/* Status */}
-        <div>
+        <div style={{ marginBottom: '6px' }}>
           <select value={field.status_id || ''} onChange={e => handleStatusChange(e.target.value)}
             disabled={!canChangeStatus}
             title={!fieldReady ? 'Fill in Assignee, Lead Time and Start Date first' : !prevComplete ? 'Previous category must be Complete first' : ''}
@@ -597,6 +722,14 @@ const { data: notes = [] } = useQuery({
             {statuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
+
+        {/* Timer */}
+        <TimerCell
+          issueId={issueId}
+          categoryId={category.id}
+          statusId={field.status_id}
+          inProgressStatusId={inProgressStatus?.id}
+        />
       </td>
     )
   }
@@ -614,7 +747,7 @@ const { data: notes = [] } = useQuery({
       </button>
 
       {/* Project Header */}
-      <div style={{ background: 'white', border: `1px solid ${projectHasWarning ? '#fca5a5' : '#e5e7eb'}`, borderRadius: '12px', padding: '20px 24px', marginBottom: '24px' }}>
+      <div style={{ background: 'white', border: `1px solid ${projectHasWarning ? '#fca5a5' : '#e5e7eb'}`, borderRadius: '12px', padding: '20px 24px', marginBottom: '16px' }}>
         {editingProject ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <input value={editName} onChange={e => setEditName(e.target.value)}
@@ -661,6 +794,9 @@ const { data: notes = [] } = useQuery({
           </div>
         )}
       </div>
+
+      {/* Project Notes */}
+      <NoteEditor entityType="project" entityId={project.id} />
 
       {/* Categories Bar */}
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -725,12 +861,17 @@ const { data: notes = [] } = useQuery({
                   }
                 </div>
 
+                {/* Component Notes */}
+                <div style={{ padding: '8px 16px 0', background: '#f9fafb', borderBottom: '1px solid #f3f4f6' }}>
+                  <NoteEditor entityType="component" entityId={comp.id} />
+                </div>
+
                 {/* Issues Table */}
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: '#fafafa' }}>
-                        <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', borderRight: '1px solid #f3f4f6', minWidth: '200px', position: 'sticky', left: 0, background: '#fafafa', zIndex: 1 }}>Issue</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', borderRight: '1px solid #f3f4f6', minWidth: '220px', position: 'sticky', left: 0, background: '#fafafa', zIndex: 1 }}>Issue</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', borderRight: '1px solid #f3f4f6', minWidth: '60px' }}>Progress</th>
                         {categories.map(cat => (
                           <th key={cat.id} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#2c2c2b', borderRight: '1px solid #f3f4f6', minWidth: '170px' }}>{cat.name}</th>
@@ -744,8 +885,9 @@ const { data: notes = [] } = useQuery({
                         const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
                         return (
                           <tr key={issue.id} style={{ borderTop: '1px solid #f3f4f6' }}>
-                            <td style={{ padding: '8px 12px', borderRight: '1px solid #f3f4f6', verticalAlign: 'middle', position: 'sticky', left: 0, background: 'white', zIndex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {/* Issue Name + Notes */}
+                            <td style={{ padding: '8px 12px', borderRight: '1px solid #f3f4f6', verticalAlign: 'top', position: 'sticky', left: 0, background: 'white', zIndex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                                   <button className="btn-ghost" style={{ padding: '1px 2px' }} onClick={() => reorderIssueMutation.mutate({ issueId: issue.id, componentId: comp.id, direction: 'up' })} disabled={issueIdx === 0}><ChevronUp size={11} /></button>
                                   <button className="btn-ghost" style={{ padding: '1px 2px' }} onClick={() => reorderIssueMutation.mutate({ issueId: issue.id, componentId: comp.id, direction: 'down' })} disabled={issueIdx === compIssues.length - 1}><ChevronDown size={11} /></button>
@@ -757,15 +899,18 @@ const { data: notes = [] } = useQuery({
                                   : <button className="btn-ghost" onClick={() => setConfirmDeleteIssue(issue.id)}><Trash2 size={12} style={{ color: '#ef4444' }} /></button>
                                 }
                               </div>
+                              <NoteEditor entityType="issue" entityId={issue.id} />
                             </td>
-                            <td style={{ padding: '8px 12px', borderRight: '1px solid #f3f4f6', verticalAlign: 'middle' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                            {/* Progress */}
+                            <td style={{ padding: '8px 12px', borderRight: '1px solid #f3f4f6', verticalAlign: 'top' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', paddingTop: '4px' }}>
                                 <div style={{ width: '40px', height: '4px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
                                   <div style={{ height: '100%', background: 'linear-gradient(to right, #ed1c24, #fcaf17)', width: `${issueProgress}%` }} />
                                 </div>
                                 <span style={{ fontSize: '11px', fontWeight: '600', color: '#2c2c2b' }}>{issueProgress}%</span>
                               </div>
                             </td>
+                            {/* Category Fields */}
                             {sortedCats.map((cat, catIndex) => (
                               <FieldCell key={cat.id} issueId={issue.id} category={cat} catIndex={catIndex} />
                             ))}
