@@ -404,11 +404,11 @@ export default function DashboardPage() {
                 <span style={{ fontSize: '12px', fontWeight: '600', color: '#2c2c2b', minWidth: '32px' }}>{progress}%</span>
               </div>
               <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: status.bg, color: status.colour }}>
-                <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace' }}>
+  {status.label}
+</span>
+<span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace' }}>
   {formatTime(getProjectTime(project.id))}
 </span>
-                {status.label}
-              </span>
             </div>
           )
         })}
