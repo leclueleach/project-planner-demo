@@ -229,6 +229,33 @@ export default function ProjectPage() {
     }
   })
 
+  const { data: timers = [], refetch: refetchTimers } = useQuery({
+  queryKey: ['timers', id],
+  queryFn: async () => {
+    const issueIds = issues.map(i => i.id)
+    if (issueIds.length === 0) return []
+    const { data, error } = await supabase
+      .from('timers')
+      .select('*')
+      .in('issue_id', issueIds)
+    if (error) throw error
+    return data
+  },
+  enabled: issues.length > 0,
+  refetchInterval: 5000 // refresh every 5 seconds to update running timers
+})
+
+const { data: notes = [], refetch: refetchNotes } = useQuery({
+  queryKey: ['notes', id],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+    if (error) throw error
+    return data
+  }
+})  
+
   // ── HELPERS ───────────────────────────────────────────────
   const getField = useCallback((issueId: string, categoryId: string) =>
     issueFields.find(f => f.issue_id === issueId && f.category_id === categoryId), [issueFields])
