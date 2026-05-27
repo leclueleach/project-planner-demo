@@ -149,9 +149,9 @@ function NoteEditor({ entityType, entityId }: { entityType: string; entityId: st
   const { data: note } = useQuery({
     queryKey: ['note', entityType, entityId],
     queryFn: async () => {
-      const { data } = await supabase.from('notes').select('*').eq('entity_type', entityType).eq('entity_id', entityId).single()
-      return data as Note | null
-    }
+  const { data } = await supabase.from('notes').select('*').eq('entity_type', entityType).eq('entity_id', entityId).maybeSingle()
+  return data as Note | null
+}
   })
 
   useEffect(() => { if (note) setVal(note.content) }, [note])
@@ -204,7 +204,7 @@ function TimerCell({ issueId, categoryId, statusId, inProgressStatusId }: { issu
   const { data: timer } = useQuery<Timer | null>({
   queryKey: ['timer', issueId, categoryId],
   queryFn: async () => {
-    const { data } = await supabase.from('timers').select('*').eq('issue_id', issueId).eq('category_id', categoryId).single()
+    const { data } = await supabase.from('timers').select('*').eq('issue_id', issueId).eq('category_id', categoryId).maybeSingle()
     return data as Timer | null
   },
   refetchInterval: 5000
