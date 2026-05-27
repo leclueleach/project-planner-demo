@@ -229,7 +229,7 @@ export default function ProjectPage() {
     }
   })
 
-  const { data: timers = [], refetch: refetchTimers } = useQuery({
+  const { data: timers = [] } = useQuery({
   queryKey: ['timers', id],
   queryFn: async () => {
     const issueIds = issues.map(i => i.id)
@@ -245,7 +245,7 @@ export default function ProjectPage() {
   refetchInterval: 5000 // refresh every 5 seconds to update running timers
 })
 
-const { data: notes = [], refetch: refetchNotes } = useQuery({
+const { data: notes = [] } = useQuery({
   queryKey: ['notes', id],
   queryFn: async () => {
     const { data, error } = await supabase
