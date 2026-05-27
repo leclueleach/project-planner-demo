@@ -201,14 +201,14 @@ function TimerCell({ issueId, categoryId, statusId, inProgressStatusId }: { issu
 
   const isInProgress = statusId === inProgressStatusId
 
-  const { data: timer } = useQuery({
-    queryKey: ['timer', issueId, categoryId],
-    queryFn: async () => {
-      const { data } = await supabase.from('timers').select('*').eq('issue_id', issueId).eq('category_id', categoryId).single()
-      return data as Timer | null
-    },
-    refetchInterval: timer?.is_running ? 5000 : false
-  })
+  const { data: timer } = useQuery<Timer | null>({
+  queryKey: ['timer', issueId, categoryId],
+  queryFn: async () => {
+    const { data } = await supabase.from('timers').select('*').eq('issue_id', issueId).eq('category_id', categoryId).single()
+    return data as Timer | null
+  },
+  refetchInterval: 5000
+})
 
   useEffect(() => {
     if (timer) {
