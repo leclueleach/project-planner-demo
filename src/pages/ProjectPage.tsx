@@ -229,7 +229,8 @@ export default function ProjectPage() {
     }
   })
 
-  const { data: timers = [] } = useQuery({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+const { data: timers = [] } = useQuery({
   queryKey: ['timers', id],
   queryFn: async () => {
     const issueIds = issues.map(i => i.id)
@@ -245,6 +246,7 @@ export default function ProjectPage() {
   refetchInterval: 5000 // refresh every 5 seconds to update running timers
 })
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { data: notes = [] } = useQuery({
   queryKey: ['notes', id],
   queryFn: async () => {
