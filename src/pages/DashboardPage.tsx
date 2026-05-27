@@ -90,6 +90,15 @@ export default function DashboardPage() {
     }
   })
 
+  const { data: timers = [] } = useQuery({
+  queryKey: ['dash-timers'],
+  queryFn: async () => {
+    const { data } = await supabase.from('timers').select('*')
+    return data || []
+  },
+  refetchInterval: 10000
+})
+
   // ── LOOKUPS ───────────────────────────────────────────────
   const compToProject: Record<string, string> = {}
   components.forEach(c => { compToProject[c.id] = c.project_id })
@@ -133,6 +142,28 @@ export default function DashboardPage() {
       if (f.end_date && (!end || f.end_date > end)) end = f.end_date
     })
     return { start, end }
+  }
+
+  const getProjectTime = (projectId: string) => {
+    const projComps = components.filter(c => c.project_id === projectId)
+    const projIssues = issues.filter(i => projComps.some(c => c.id === i.component_id))
+    const projTimers = (timers as any[]).filter(t => projIssues.some(i => i.id === t.issue_id))
+    let total = 0
+    projTimers.forEach((t: any) => {
+      total += t.elapsed_seconds || 0
+      if (t.is_running && t.last_started_at) {
+        total += Math.floor((Date.now() - new Date(t.last_started_at).getTime()) / 1000)
+      }
+    })
+    return total
+  }
+
+  const formatTime = (seconds: number) => {
+    if (seconds === 0) return '—'
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
 
   // ── PROJECT STATUS LABEL ──────────────────────────────────
@@ -346,8 +377,8 @@ export default function DashboardPage() {
           <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#2c2c2b' }}>Project Detail</h2>
           <span style={{ fontSize: '12px', color: '#9ca3af' }}>{filteredProjects.length} projects</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 110px 110px 110px 110px 150px 100px', gap: '12px', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-          {['Project', 'Department', 'Planned Start', 'Planned End', 'Actual Start', 'Actual End', 'Progress', 'Status'].map((h, i) => (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 110px 110px 110px 110px 150px 100px 100px', gap: '12px', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+          {['Project', 'Department', 'Planned Start', 'Planned End', 'Actual Start', 'Actual End', 'Progress', 'Status', 'Time Spent'].map((h, i) => (
             <div key={i} style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
           ))}
         </div>
@@ -359,7 +390,7 @@ export default function DashboardPage() {
           const status = getProjectStatus(project.id)
           const actual = getProjectActualDates(project.id)
           return (
-            <div key={project.id} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 110px 110px 110px 110px 150px 100px', gap: '12px', padding: '12px 20px', borderBottom: i < filteredProjects.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'center' }}>
+            <div key={project.id} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 110px 110px 110px 110px 150px 100px 100px', gap: '12px', padding: '12px 20px', borderBottom: i < filteredProjects.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: '500', color: '#2c2c2b' }}>{project.name}</span>
               <span style={{ fontSize: '12px', color: '#6b7280' }}>{dept?.name || '—'}</span>
               <span style={{ fontSize: '12px', color: '#6b7280' }}>{formatDate(project.planned_start_date)}</span>
@@ -373,6 +404,9 @@ export default function DashboardPage() {
                 <span style={{ fontSize: '12px', fontWeight: '600', color: '#2c2c2b', minWidth: '32px' }}>{progress}%</span>
               </div>
               <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: status.bg, color: status.colour }}>
+                <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace' }}>
+  {formatTime(getProjectTime(project.id))}
+</span>
                 {status.label}
               </span>
             </div>
