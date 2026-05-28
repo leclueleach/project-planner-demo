@@ -20,6 +20,7 @@ function App() {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="history" element={<HistoryPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
