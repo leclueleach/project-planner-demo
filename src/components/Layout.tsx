@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
 import { LayoutDashboard, Settings, History, BarChart2, ChevronRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { LayoutDashboard, Settings, History, BarChart2, ChevronRight, UserCircle } from 'lucide-react'
 
 function useCountdown() {
   const [timeLeft, setTimeLeft] = useState('')
@@ -162,6 +163,10 @@ export default function Layout() {
             <History size={16} />
             History
           </NavLink>
+          <NavLink to="/profile" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+  <UserCircle size={16} />
+  Profile
+</NavLink>
         </div>
       </nav>
 
