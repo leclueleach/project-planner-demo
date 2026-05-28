@@ -1,5 +1,3 @@
-import { UserCircle } from 'lucide-react'
-
 export default function ProfilePage() {
   return (
     <div>
